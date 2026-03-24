@@ -1,7 +1,4 @@
 # HTTP vs WebSocket Communication Lab
-
-**[🚀 View Live Demo Here](#)** *(Replace `#` with your actual demo link!)*
-
 A simple demonstration website for comparing:
 - HTTP polling
 - WebSocket real-time communication

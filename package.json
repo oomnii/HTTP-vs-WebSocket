@@ -1,0 +1,13 @@
+{
+  "name": "http-vs-websocket-lab",
+  "version": "1.0.0",
+  "description": "Simple lab assignment demo: HTTP polling vs WebSocket real-time communication",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.18.0"
+  }
+}

@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HTTP vs WebSocket Communication</title>
+  <style>
+    :root {
+      --c1: #C9B59C;
+      --c2: #D9CFC7;
+      --c3: #EFE9E3;
+      --c4: #F9F8F6;
+      --text: #4A4036;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, Helvetica, sans-serif;
+      background: var(--c4);
+      color: var(--text);
+    }
+
+    .page {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 28px 18px 40px;
+    }
+
+    .hero {
+      background: var(--c2);
+      color: var(--text);
+      border: 3px solid var(--c1);
+      border-radius: 18px;
+      padding: 22px;
+      text-align: center;
+    }
+
+    .hero h1 {
+      margin: 0 0 8px;
+      font-size: 2rem;
+    }
+
+    .hero p {
+      margin: 0;
+      line-height: 1.5;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      flex-wrap: wrap;
+      margin: 20px 0 16px;
+    }
+
+    button {
+      background: var(--c3);
+      color: var(--text);
+      border: 2px solid var(--c1);
+      padding: 11px 18px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+
+    button:hover {
+      background: var(--c2);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 18px;
+      margin-top: 16px;
+    }
+
+    .card {
+      background: var(--c2);
+      color: var(--text);
+      border: 3px solid var(--c1);
+      border-radius: 18px;
+      padding: 18px;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      margin-bottom: 10px;
+    }
+
+    .status,
+    .mini-box,
+    .log {
+      background: var(--c4);
+      color: var(--text);
+      border: 2px solid var(--c1);
+      border-radius: 12px;
+    }
+
+    .status,
+    .mini-box {
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-weight: 700;
+    }
+
+    .log {
+      height: 280px;
+      overflow-y: auto;
+      padding: 10px;
+    }
+
+    .entry {
+      background: var(--c3);
+      color: var(--text);
+      border: 2px solid var(--c1);
+      border-radius: 10px;
+      padding: 10px;
+      margin-bottom: 10px;
+      line-height: 1.4;
+    }
+
+    .footer-note {
+      margin-top: 18px;
+      background: var(--c3);
+      color: var(--text);
+      border: 3px solid var(--c1);
+      border-radius: 18px;
+      padding: 16px;
+    }
+
+    .footer-note h3 {
+      margin-top: 0;
+    }
+
+    .footer-note ul {
+      margin: 8px 0 0;
+      padding-left: 22px;
+    }
+
+    .footer-note li {
+      margin-bottom: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="hero">
+      <h1>Understanding HTTP vs WebSocket</h1>
+      <p>
+        A simple, interactive demo to see how modern web communication works.
+      </p>
+    </div>
+
+    <div class="controls">
+      <button onclick="startPolling()">Start HTTP Polling</button>
+      <button onclick="stopPolling()">Stop HTTP Polling</button>
+      <button onclick="clearLogs()">Clear Logs</button>
+    </div>
+
+    <div class="grid">
+      <div class="card">
+        <h2>HTTP (Polling)</h2>
+        <div class="status" id="httpStatus">Status: Not started</div>
+        <div class="mini-box" id="httpInfo">The browser asks for updates every 3 seconds.</div>
+        <div class="log" id="httpLog"></div>
+      </div>
+
+      <div class="card">
+        <h2>WebSocket (Real-Time Push)</h2>
+        <div class="status" id="wsStatus">Status: Connecting...</div>
+        <div class="mini-box" id="wsInfo">The server pushes updates the moment they happen.</div>
+        <div class="log" id="wsLog"></div>
+      </div>
+    </div>
+
+    <div class="footer-note">
+      <h3>Why does this matter?</h3>
+      <ul>
+        <li><strong>HTTP Polling</strong> is like calling a restaurant repeatedly to ask if your order is ready. It wastes time and resources.</li>
+        <li><strong>WebSocket</strong> is like giving the restaurant your phone number so they text you exactly when it's ready. It's instant and efficient!</li>
+        <li>Use HTTP for regular webpages, but WebSockets for chat apps, live scoreboards, or anywhere speed is critical.</li>
+      </ul>
+    </div>
+  </div>
+
+  <script>
+    const httpLog = document.getElementById("httpLog");
+    const wsLog = document.getElementById("wsLog");
+    const httpStatus = document.getElementById("httpStatus");
+    const wsStatus = document.getElementById("wsStatus");
+
+    let pollingTimer = null;
+    let lastHttpId = -1;
+
+    function addLog(container, text) {
+      const entry = document.createElement("div");
+      entry.className = "entry";
+      entry.textContent = text;
+      container.prepend(entry);
+    }
+
+    function clearLogs() {
+      httpLog.innerHTML = "";
+      wsLog.innerHTML = "";
+    }
+
+    async function pollServer() {
+      const startTime = performance.now();
+
+      try {
+        const response = await fetch("/poll");
+        const data = await response.json();
+        const latency = (performance.now() - startTime).toFixed(2);
+
+        if (data.id !== lastHttpId) {
+          addLog(
+            httpLog,
+            `[${data.time}] ${data.message} | Latency: ${latency} ms`
+          );
+          lastHttpId = data.id;
+        }
+
+        httpStatus.textContent = "Status: Polling every 3 seconds";
+      } catch (error) {
+        httpStatus.textContent = "Status: Polling error";
+      }
+    }
+
+    function startPolling() {
+      if (pollingTimer) return;
+      pollServer();
+      pollingTimer = setInterval(pollServer, 3000);
+      httpStatus.textContent = "Status: Started";
+    }
+
+    function stopPolling() {
+      if (pollingTimer) {
+        clearInterval(pollingTimer);
+        pollingTimer = null;
+      }
+      httpStatus.textContent = "Status: Stopped";
+    }
+
+    const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
+    const ws = new WebSocket(`${wsProtocol}://${window.location.host}`);
+
+    ws.onopen = () => {
+      wsStatus.textContent = "Status: Connected";
+    };
+
+    ws.onmessage = (event) => {
+      const payload = JSON.parse(event.data);
+      if (payload.type === "notification") {
+        addLog(
+          wsLog,
+          `[${payload.data.time}] ${payload.data.message} | Received instantly`
+        );
+      }
+    };
+
+    ws.onclose = () => {
+      wsStatus.textContent = "Status: Disconnected";
+    };
+
+    ws.onerror = () => {
+      wsStatus.textContent = "Status: Connection error";
+    };
+  </script>
+</body>
+</html>
